@@ -4,26 +4,31 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Configuração da página
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 
-# Estilização customizada
+# Estilo customizado
 st.markdown(
     """
     <style>
         .logo-container {
             display: flex;
             justify-content: center;
-            margin-bottom: 10px;
+            margin-top: 10px;
+            margin-bottom: -15px;
         }
         .logo-container img {
-            width: 100px;
+            width: 80px;
         }
         .rodape {
             text-align: center;
             margin-top: 50px;
             font-size: 0.9em;
             color: #888;
+        }
+        .resultado {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
         }
     </style>
     """,
@@ -37,17 +42,17 @@ st.markdown('<div class="logo-container"><img src="logo_engenharia.png" alt="Log
 st.markdown("## 🔎 Diagnóstico por Manifestação Patológica")
 st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)")
 
-# Pré-processamento leve
+# Função de pré-processamento simples
 def preprocessar(texto):
     texto = str(texto).lower()
     texto = re.sub(r"[^\w\s]", "", texto)
     palavras = texto.split()
     return " ".join(p for p in palavras if len(p) > 2)
 
-# Carregar base
+# Carregamento da base
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 
-# Coluna auxiliar combinando todos os campos relevantes
+# Coluna combinada para busca por similaridade
 df["texto_completo"] = (
     df["manifestacao"].fillna('') + " "
     + df["trecho"].fillna('') + " "
@@ -55,14 +60,14 @@ df["texto_completo"] = (
     + df["consultas_relacionadas"].fillna('')
 )
 
-# Pré-processar os textos combinados
+# Pré-processamento da base
 df["texto_processado"] = df["texto_completo"].apply(preprocessar)
 
 # Vetorização
 vetorizador = TfidfVectorizer()
 matriz_tfidf = vetorizador.fit_transform(df["texto_processado"])
 
-# Entrada do usuário
+# Campo de entrada
 entrada = st.text_input("Descreva o problema:")
 
 def buscar_normas(consulta):
@@ -77,21 +82,25 @@ def buscar_normas(consulta):
     top_resultados = top_resultados[similaridades[top_indices] > 0.1]
     return top_resultados
 
-# Mostrar resultados
+# Exibição dos resultados
 if entrada:
     resultados = buscar_normas(entrada)
 
     if not resultados.empty:
         st.success("Resultados encontrados:")
 
-        for i, linha in resultados.iterrows():
+        for _, linha in resultados.iterrows():
             st.markdown(f"""
-🔎 **Manifestação:** {linha['manifestacao']}
-📘 **Segundo a {linha['norma']}, seção {linha['secao']}:** {linha['trecho']}
-✅ **Recomendações:** {linha['recomendacoes']}
+<div class="resultado">
+🔎 **Manifestação:** {linha['manifestacao']}<br>
+📘 **Segundo a {linha['norma']}, seção {linha['secao']}:**<br>
+{linha['trecho']}<br><br>
+✅ **Recomendações:**<br>
+{linha['recomendacoes']}<br><br>
 🔁 **Consultas relacionadas:** {linha['consultas_relacionadas']}
----
-            """)
+</div>
+""", unsafe_allow_html=True)
+
     else:
         st.warning("Nenhum resultado encontrado para essa manifestação.")
 
