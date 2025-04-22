@@ -4,22 +4,23 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# === PÁGINA & CONFIGURAÇÃO ===
+# === CONFIGURAÇÃO DA PÁGINA ===
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 
 # === CSS PERSONALIZADO ===
 st.markdown("""
 <style>
-  /* Título e subtítulo */
+  /* Título */
   .titulo {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 0.2rem;
   }
+  /* Subtítulo */
   .subtitulo {
     text-align: center;
-    margin-bottom: 1.5rem;
     color: #555;
+    margin-bottom: 1.5rem;
   }
   /* Resultado formatado */
   .resultado {
@@ -39,9 +40,9 @@ st.markdown("""
 
 # === LOGO CENTRALIZADA ===
 st.markdown(
-    '<div style="text-align:center; margin-bottom: 1rem;">'
-    '<img src="logo_engenharia.png" width="80px" />'
-    '</div>',
+    '<p style="text-align:center; margin-bottom:1rem;">'
+    '<img src="logo_engenharia.png" width="80" alt="Logo Engenharia">'
+    '</p>',
     unsafe_allow_html=True
 )
 
@@ -58,15 +59,15 @@ st.markdown(
 # === FUNÇÃO DE PRÉ‑PROCESSAMENTO ===
 def preprocessar(texto: str) -> str:
     txt = texto.lower()
-    txt = re.sub(r"[^\w\s]", "", txt)      # remove pontuação
+    txt = re.sub(r"[^\w\s]", "", txt)
     toks = txt.split()
     return " ".join(t for t in toks if len(t) > 2)
 
-# === CARREGA A BASE E PREPROCESSA ===
+# === CARREGAR BASE E PREPROCESSAR ===
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZAÇÃO CHAR N‑GRAM (3 a 5) ===
+# === VETORIZADOR CHAR N‑GRAM (3–5) ===
 vectorizer = TfidfVectorizer(
     analyzer="char_wb",
     ngram_range=(3,5),
@@ -88,7 +89,7 @@ def buscar(consulta: str) -> pd.DataFrame:
         encontrados = df[mask].copy()
     return encontrados
 
-# === INPUT E EXIBIÇÃO DE RESULTADOS ===
+# === INPUT & EXIBIÇÃO ===
 entrada = st.text_input("Descreva o problema:")
 
 if entrada:
