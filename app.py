@@ -4,11 +4,13 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# === PÁGINA & CSS ===
+# === CONFIGURAÇÃO DA PÁGINA ===
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
+
+# === CSS ===
 st.markdown("""
 <style>
-  /* Título */
+  /* Título principal */
   .titulo {
     text-align: center;
     font-size: 2rem;
@@ -19,14 +21,14 @@ st.markdown("""
     text-align: center;
     margin-bottom: 1.5rem;
   }
-  /* Resultado */
+  /* Bloco de cada resultado */
   .resultado {
     font-size: 0.95em;
     line-height: 1.4em;
     margin-bottom: 2em;
   }
   .resultado p {
-    margin: 0.5em 0;
+    margin: 0.3em 0;
   }
   /* Rodapé */
   .rodape {
@@ -38,25 +40,33 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO (usando st.image para garantir que apareça) ===
-st.image("logo_engenharia.png", width=80, use_column_width=False)
+# === LOGO CENTRALIZADA ===
+st.markdown(
+    """
+    <div style="text-align: center; margin-bottom: 15px;">
+      <img src="logo_engenharia.png" width="100" alt="Logo Engenharia"/>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitulo">Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)</div>', unsafe_allow_html=True)
 
-# === PREPROCESSAMENTO LEVE ===
+# === FUNÇÃO DE PRÉ‑PROCESSAMENTO LEVE ===
 def preprocessar(texto: str) -> str:
     txt = texto.lower()
     txt = re.sub(r"[^\w\s]", "", txt)
     toks = txt.split()
+    # só tokens com mais de 2 caracteres
     return " ".join(t for t in toks if len(t) > 2)
 
-# === CARREGA A BASE ===
-df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
+# === CARREGA BASE DE DADOS ===
+df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv", encoding="utf-8")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZAÇÃO (character n-grams para tratar variações) ===
+# === VETORIZADOR (character n‑grams cobre variações como "fiss", "fissura", etc.) ===
 vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
@@ -69,12 +79,13 @@ def buscar(consulta: str) -> pd.DataFrame:
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs][sims[idxs] > 0.1].copy()
+    # fallback por substring no campo 'manifestacao'
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask]
     return encontrados
 
-# === INPUT & EXIBIÇÃO ===
+# === INPUT & RESULTADO ===
 entrada = st.text_input("Descreva o problema:")
 
 if entrada:
