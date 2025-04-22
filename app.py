@@ -3,6 +3,7 @@ import pandas as pd
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from PIL import Image
 
 # === PÁGINA & CSS ===
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
@@ -10,46 +11,29 @@ st.markdown("""
 <style>
   /* Logo */
   .logo-container {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 15px;
+    display: flex; justify-content: center; margin-bottom: 15px;
   }
-  .logo-container img {
-    width: 80px;
-    height: auto;
-  }
-  /* Título */
-  .titulo {
-    text-align: center;
-    font-size: 2rem;
-    margin-bottom: 0.2rem;
-  }
-  /* Texto de resultado */
+  /* Resultado */
   .resultado {
-    font-size: 0.95em;
-    line-height: 1.4em;
-    margin-bottom: 1.5em;
+    font-size: 0.95em; line-height: 1.4em; margin-bottom: 2em;
+  }
+  .resultado p {
+    margin: 0.3em 0;
   }
   /* Rodapé */
   .rodape {
-    text-align: center;
-    margin-top: 50px;
-    font-size: 0.9em;
-    color: #888;
+    text-align: center; margin-top: 50px; font-size: 0.9em; color: #888;
   }
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO ===
-st.markdown(
-    '<div class="logo-container">'
-  +  '<img src="logo_engenharia.png" />'
-  +  '</div>',
-    unsafe_allow_html=True
-)
+# === LOGO (centralizado) ===
+st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+st.image("logo_engenharia.png", width=80)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # === TÍTULO & SUBTÍTULO ===
-st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
+st.markdown("## 🔎 Diagnóstico por Manifestação Patológica")
 st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)")
 
 # === PREPROCESSAMENTO LEVE ===
@@ -64,11 +48,7 @@ df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
 # === VETORIZADOR DE CHARACTER N-GRAMS ===
-vectorizer = TfidfVectorizer(
-    analyzer="char_wb",
-    ngram_range=(3,5),
-    lowercase=True,
-)
+vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
 # === FUNÇÃO DE BUSCA ===
@@ -93,17 +73,15 @@ if entrada:
     res = buscar(entrada)
     if not res.empty:
         st.success("Resultados encontrados:")
-        for _, row in res.iterrows():
+        for i, row in res.iterrows():
             st.markdown(f"""
 <div class="resultado">
-**🔎 Manifestação:** {row['manifestacao']}  
-**📘 Segundo a {row['norma']}, seção {row['secao']}:**  
-{row['trecho']}
-
-**✅ Recomendações:**  
-{row['recomendacoes']}
-
-**🔁 Consultas relacionadas:** {row['consultas_relacionadas']}
+  <p><strong>🔎 Manifestação:</strong> {row['manifestacao']}</p>
+  <p><strong>📘 Segundo a {row['norma']}, seção {row['secao']}:</strong><br>
+  {row['trecho']}</p>
+  <p><strong>✅ Recomendações:</strong><br>
+  {row['recomendacoes']}</p>
+  <p><strong>🔁 Consultas relacionadas:</strong> {row['consultas_relacionadas']}</p>
 </div>
 """, unsafe_allow_html=True)
     else:
