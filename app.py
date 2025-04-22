@@ -1,60 +1,82 @@
 import streamlit as st
 import pandas as pd
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import re
-from PIL import Image
 
-# Centraliza elementos e define layout da página
+# === CONFIGURAÇÃO DA PÁGINA e ESTILO ===
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 
-# Carrega imagem
-logo = Image.open("logo_engenharia.png")
-st.image(logo, width=100)
+st.markdown("""
+    <style>
+        /* Centraliza logo */
+        .logo-container { text-align: center; margin: 20px 0; }
+        .logo-container img { width: 80px; }
 
-# Título
-st.markdown("<h1 style='text-align: center;'>🔍 Diagnóstico por Manifestação Patológica</h1>", unsafe_allow_html=True)
+        /* Resultado: fonte um pouco menor e espaçamento */
+        .resultado { font-size: 0.95em; line-height: 1.4em; margin-bottom: 1.5em; }
+
+        /* Label do input mais escuro */
+        label[for="textarea"] { color: #333 !important; }
+
+        /* Rodapé */
+        .rodape { text-align: center; margin-top: 50px; font-size: 0.9em; color: #888; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="logo-container"><img src="logo_engenharia.png" alt="Logo Engenharia"></div>', unsafe_allow_html=True)
+st.markdown("## 🔎 Diagnóstico por Manifestação Patológica")
 st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)")
 
-# Carregando base
+# === FUNÇÃO DE PRÉ-PROCESSAMENTO (SEM ALTERAR) ===
+def preprocessar(texto):
+    texto = str(texto).lower()
+    texto = re.sub(r"[^\w\s]", "", texto)
+    palavras = texto.split()
+    # opcional: tratar 'fissur' como raíz
+    return " ".join(p for p in palavras if len(p) > 2)
+
+# === CARREGA E PREPARA A BASE (SEM ALTERAR) ===
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
+df["trecho_processado"] = df["trecho"].apply(preprocessar)
 
-# Pré-processamento
-def preprocess(text):
-    text = str(text).lower()
-    text = re.sub(r"[^\w\s]", "", text)
-    return text
+# === VETORIZADOR E MATRIZ TF‑IDF (SEM ALTERAR) ===
+vet = TfidfVectorizer()
+matriz = vet.fit_transform(df["trecho_processado"])
 
-df["trecho_processado"] = df["trecho"].apply(preprocess)
+# === FUNÇÃO DE BUSCA “TRAVADA” ===
+def buscar_normas(consulta):
+    proc = preprocessar(consulta)
+    if not proc:
+        return pd.DataFrame()
 
-# Vetorização
-vetor = TfidfVectorizer()
-matriz = vetor.fit_transform(df["trecho_processado"])
+    vec = vet.transform([proc])
+    sims = cosine_similarity(vec, matriz).flatten()
+    idxs = sims.argsort()[::-1]
+    resultados = df.iloc[idxs][sims[idxs] > 0.1]  # limiar de relevância
+    return resultados
 
-# Entrada
+# === INTERAÇÃO COM USUÁRIO ===
 entrada = st.text_input("Descreva o problema:")
 
-def gerar_resposta(idx):
-    linha = df.iloc[idx]
-    resposta = f"""🔍 **Manifestação:** {linha['manifestacao']}  
-📘 **Segundo a {linha['norma']}, seção {linha['secao']}:**  
-{linha['trecho']}  
-✅ **Recomendações:** {linha['recomendacoes']}  
-📄 **Consultas relacionadas:** {linha['consultas_relacionadas']}  
-"""
-    return resposta
-
 if entrada:
-    entrada_proc = preprocess(entrada)
-    entrada_vec = vetor.transform([entrada_proc])
-    similaridades = cosine_similarity(entrada_vec, matriz).flatten()
-    indices = similaridades.argsort()[::-1]
+    res = buscar_normas(entrada)
+    if not res.empty:
+        st.success("Resultados encontrados:")
+        for _, row in res.iterrows():
+            st.markdown(f"""
+<div class="resultado">
+🔎 **Manifestação:** {row['manifestacao']}  
+📘 **Segundo a {row['norma']}, seção {row['secao']}:**  
+{row['trecho']}  
 
-    resultados_encontrados = False
-    for idx in indices:
-        if similaridades[idx] > 0.2:
-            st.markdown(gerar_resposta(idx))
-            resultados_encontrados = True
+✅ **Recomendações:** {row['recomendacoes']}  
 
-    if not resultados_encontrados:
+🔁 **Consultas relacionadas:** {row['consultas_relacionadas']}
+</div>
+""", unsafe_allow_html=True)
+    else:
         st.warning("Nenhum resultado encontrado para essa manifestação.")
+
+# === RODAPÉ ===
+st.markdown('<div class="rodape">Desenvolvido por Gézica Hemann | Engenharia Civil</div>', unsafe_allow_html=True)
