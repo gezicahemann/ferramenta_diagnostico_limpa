@@ -10,26 +10,32 @@ st.markdown("""
 <style>
   /* Logo */
   .logo-container {
-    display: flex; justify-content: center; margin-bottom: 15px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
   }
   .logo-container img {
-    width: 80px; height: auto;
+    width: 80px;
+    height: auto;
   }
   /* Título */
   .titulo {
-    text-align: center; font-size: 2rem; margin-bottom: 0.2rem;
-  }
-  /* Rótulo do input */
-  label[for="data"] { /* Streamlit usa um ID gerado; mas em geral estiliza mais escuro */
-    color: #333 !important;
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 0.2rem;
   }
   /* Texto de resultado */
   .resultado {
-    font-size: 0.95em; line-height: 1.4em; margin-bottom: 1.5em;
+    font-size: 0.95em;
+    line-height: 1.4em;
+    margin-bottom: 1.5em;
   }
   /* Rodapé */
   .rodape {
-    text-align: center; margin-top: 50px; font-size: 0.9em; color: #888;
+    text-align: center;
+    margin-top: 50px;
+    font-size: 0.9em;
+    color: #888;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -49,7 +55,7 @@ st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltr
 # === PREPROCESSAMENTO LEVE ===
 def preprocessar(texto: str) -> str:
     txt = texto.lower()
-    txt = re.sub(r"[^\w\s]", "", txt)          # só letras e espaços
+    txt = re.sub(r"[^\w\s]", "", txt)
     toks = txt.split()
     return " ".join(t for t in toks if len(t) > 2)
 
@@ -57,7 +63,7 @@ def preprocessar(texto: str) -> str:
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZADOR DE CHARACTER N-GRAMS para pegar variações da palavra ===
+# === VETORIZADOR DE CHARACTER N-GRAMS ===
 vectorizer = TfidfVectorizer(
     analyzer="char_wb",
     ngram_range=(3,5),
@@ -70,12 +76,11 @@ def buscar(consulta: str) -> pd.DataFrame:
     proc = preprocessar(consulta)
     if not proc:
         return pd.DataFrame()
-    # transforma e calcula similaridade
     vec = vectorizer.transform([proc])
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs][sims[idxs] > 0.1].copy()
-    # fallback: busca direta no campo 'manifestacao' se nada via TF-IDF
+    # fallback no campo "manifestacao"
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask]
@@ -93,10 +98,10 @@ if entrada:
 <div class="resultado">
 **🔎 Manifestação:** {row['manifestacao']}  
 **📘 Segundo a {row['norma']}, seção {row['secao']}:**  
-{row['trecho']}  
+{row['trecho']}
 
 **✅ Recomendações:**  
-{row['recomendacoes']}  
+{row['recomendacoes']}
 
 **🔁 Consultas relacionadas:** {row['consultas_relacionadas']}
 </div>
