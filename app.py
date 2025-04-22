@@ -7,78 +7,67 @@ import re
 # Carregar base de dados
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 
-# Pré-processamento leve (sem spaCy)
+# Preprocessamento leve
 def preprocessar(texto):
     texto = str(texto).lower()
     texto = re.sub(r"[^\w\s]", "", texto)
     palavras = texto.split()
-    return " ".join([p for p in palavras if len(p) > 2])  # remove palavras curtas
+    return " ".join([p for p in palavras if len(p) > 2])
 
-# Criar coluna processada
+# Aplicar pré-processamento
 df["trecho_processado"] = df["trecho"].apply(preprocessar)
 
-# Vetorização com TF-IDF
-vetorizador = TfidfVectorizer()
-matriz_tfidf = vetorizador.fit_transform(df["trecho_processado"])
+# Verifica se a base foi processada corretamente
+if df["trecho_processado"].isnull().all() or df.empty:
+    st.error("Erro: a base de dados está vazia ou mal formatada. Verifique o arquivo CSV.")
+else:
+    # Vetoriza os trechos das normas
+    vetorizar = TfidfVectorizer()
+    matriz_tfidf = vetorizar.fit_transform(df["trecho_processado"])
 
-# Função de busca com refinamento
-def buscar_normas(consulta):
-    consulta_proc = preprocessar(consulta)
-    if not consulta_proc.strip():
-        return pd.DataFrame()
+    # Interface do app
+    st.markdown("""
+    <div style='text-align: center;'>
+        <img src='https://raw.githubusercontent.com/gezicahemann/ferramenta_diagnostico/main/logo_engenharia.png' width='120'>
+        <h1>🔎 Diagnóstico por Manifestação Patológica</h1>
+        <p>Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Primeiro: busca direta por nome da manifestação
-    resultados_exatos = df[df["manifestacao"].str.lower().str.contains(consulta_proc)]
-    if not resultados_exatos.empty:
-        return resultados_exatos[
-            ["manifestacao", "norma", "secao", "trecho", "recomendacoes", "consultas_relacionadas"]
-        ]
+    consulta = st.text_input("Descreva o problema:")
 
-    # Caso não encontre correspondência exata, aplica IA com TF-IDF
-    consulta_vec = vetorizador.transform([consulta_proc])
-    similaridades = cosine_similarity(consulta_vec, matriz_tfidf).flatten()
+    def buscar_normas(consulta):
+        consulta_proc = preprocessar(consulta)
+        if not consulta_proc.strip():
+            return pd.DataFrame()
 
-    top_indices = similaridades.argsort()[::-1]
-    top_resultados = df.iloc[top_indices]
-    top_resultados = top_resultados[
-        ["manifestacao", "norma", "secao", "trecho", "recomendacoes", "consultas_relacionadas"]
-    ]
-    top_resultados = top_resultados[similaridades[top_indices] > 0.25]
+        consulta_vec = vetorizar.transform([consulta_proc])
+        similaridades = cosine_similarity(consulta_vec, matriz_tfidf).flatten()
+        top_indices = similaridades.argsort()[::-1]
+        top_resultados = df.iloc[top_indices]
+        top_resultados = top_resultados[similaridades[top_indices] > 0.2]  # Limite de relevância
+        return top_resultados
 
-    return top_resultados
+    if consulta:
+        resultados = buscar_normas(consulta)
 
-# Interface
-st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
+        if not resultados.empty:
+            st.success("Resultados encontrados:")
+            for _, linha in resultados.iterrows():
+                st.markdown(f"""
+                <div style='background-color: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;'>
+                <b>🔎 Manifestação:</b> {linha['manifestacao']}<br>
+                <b>📘 Segundo a {linha['norma']}, seções {linha['secao']},</b> {linha['trecho']}<br>
+                <b>✅ Recomendações:</b> {linha['recomendacoes']}<br>
+                <b>🔁 Consultas relacionadas:</b> {linha['consultas_relacionadas']}
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.warning("Nenhum resultado encontrado para essa manifestação.")
 
-# Estilo customizado
-st.markdown("""
-    <style>
-        body { background-color: #111; color: #fff; }
-        .stTextInput label { color: #ccc; font-weight: 500; }
-        .rodape { text-align: center; margin-top: 4rem; font-size: 0.85rem; color: #aaa; }
-        .stApp { padding-top: 2rem; }
-        img { display: block; margin: auto; width: 100px; }
-    </style>
-""", unsafe_allow_html=True)
-
-# Logo
-st.image("logo_engenharia.png")
-
-# Título e descrição
-st.markdown("### 🧱 Diagnóstico por Manifestação Patológica")
-st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)")
-
-# Campo de entrada
-entrada = st.text_input("Descreva o problema:")
-
-# Resultado
-if entrada:
-    resultados = buscar_normas(entrada)
-    if not resultados.empty:
-        st.success("Resultados encontrados:")
-        st.dataframe(resultados, use_container_width=True)
-    else:
-        st.warning("Nenhum resultado encontrado para essa manifestação.")
-
-# Rodapé
-st.markdown('<div class="rodape">Desenvolvido por Gézica Hemann | Engenharia Civil</div>', unsafe_allow_html=True)
+    # Rodapé
+    st.markdown("""
+    <div style='text-align: center; font-size: 13px; margin-top: 40px;'>
+        Desenvolvido por Gézica Hemann | Engenharia Civil
+    </div>
+    """, unsafe_allow_html=True)
