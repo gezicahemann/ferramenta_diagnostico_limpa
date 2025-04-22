@@ -14,15 +14,14 @@ st.markdown("""
     font-size: 2rem;
     margin-bottom: 0.2rem;
   }
-  /* Input */
-  .stTextInput > label {
-    color: #333 !important;
-  }
-  /* Texto de resultado */
+  /* Resultado */
   .resultado {
     font-size: 0.95em;
     line-height: 1.4em;
-    margin-bottom: 1.5em;
+    margin-bottom: 2em;
+  }
+  .resultado p {
+    margin: 0.4em 0;
   }
   /* Rodapé */
   .rodape {
@@ -55,11 +54,7 @@ df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
 # === VETORIZADOR DE CHARACTER N-GRAMS ===
-vectorizer = TfidfVectorizer(
-    analyzer="char_wb",
-    ngram_range=(3,5),
-    lowercase=True,
-)
+vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
 # === FUNÇÃO DE BUSCA ===
@@ -71,7 +66,6 @@ def buscar(consulta: str) -> pd.DataFrame:
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs][sims[idxs] > 0.1].copy()
-    # fallback: busca direta em 'manifestacao'
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask]
@@ -87,14 +81,12 @@ if entrada:
         for _, row in res.iterrows():
             st.markdown(f"""
 <div class="resultado">
-🔎 **Manifestação:** {row['manifestacao']}  
-📘 **Segundo a {row['norma']}, seção {row['secao']}:**  
-{row['trecho']}  
-
-✅ **Recomendações:**  
-{row['recomendacoes']}  
-
-🔁 **Consultas relacionadas:** {row['consultas_relacionadas']}
+  <p><strong>🔎 Manifestação:</strong> {row['manifestacao']}</p>
+  <p><strong>📘 Segundo a {row['norma']}, seção {row['secao']}:</strong><br>
+  {row['trecho']}</p>
+  <p><strong>✅ Recomendações:</strong><br>
+  {row['recomendacoes']}</p>
+  <p><strong>🔁 Consultas relacionadas:</strong> {row['consultas_relacionadas']}</p>
 </div>
 """, unsafe_allow_html=True)
     else:
