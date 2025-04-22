@@ -46,11 +46,21 @@ def preprocessar(texto):
 
 # Carregar base
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
-df["trecho_processado"] = df["trecho"].apply(preprocessar)
+
+# Coluna auxiliar combinando todos os campos relevantes
+df["texto_completo"] = (
+    df["manifestacao"].fillna('') + " "
+    + df["trecho"].fillna('') + " "
+    + df["recomendacoes"].fillna('') + " "
+    + df["consultas_relacionadas"].fillna('')
+)
+
+# Pré-processar os textos combinados
+df["texto_processado"] = df["texto_completo"].apply(preprocessar)
 
 # Vetorização
 vetorizador = TfidfVectorizer()
-matriz_tfidf = vetorizador.fit_transform(df["trecho_processado"])
+matriz_tfidf = vetorizador.fit_transform(df["texto_processado"])
 
 # Entrada do usuário
 entrada = st.text_input("Descreva o problema:")
@@ -63,9 +73,8 @@ def buscar_normas(consulta):
     consulta_vec = vetorizador.transform([consulta_proc])
     similaridades = cosine_similarity(consulta_vec, matriz_tfidf).flatten()
     top_indices = similaridades.argsort()[::-1]
-
     top_resultados = df.iloc[top_indices]
-    top_resultados = top_resultados[similaridades[top_indices] > 0.1]  # Limite de relevância
+    top_resultados = top_resultados[similaridades[top_indices] > 0.1]
     return top_resultados
 
 # Mostrar resultados
