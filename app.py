@@ -1,85 +1,84 @@
-import streamlit as st
 import pandas as pd
-import unicodedata
+import streamlit as st
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import re
+from pathlib import Path
 
-# Centralizar layout e definir largura
-st.set_page_config(layout="centered")
-
-# Logo centralizada
+# Centraliza a logo com o título
 st.markdown(
     """
     <div style="text-align: center;">
-        <img src="https://raw.githubusercontent.com/gezicahemann/ferramenta_diagnostico/main/logo_engenharia.png" width="80">
-        <div style="margin-top: 5px; font-size: 12px;">Engenharia</div>
+        <img src="https://raw.githubusercontent.com/gezicahemann/ferramenta_diagnostico/main/logo_engenharia.png" width="90"/>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# Título e descrição
-st.markdown("<h1 style='text-align: center;'>🔍 Diagnóstico por Manifestação Patológica</h1>", unsafe_allow_html=True)
+st.markdown(
+    "<h1 style='text-align: center;'>🔍 Diagnóstico por Manifestação Patológica</h1>",
+    unsafe_allow_html=True
+)
 st.markdown(
     "<p style='text-align: center;'>Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)</p>",
     unsafe_allow_html=True
 )
 
-# Campo de entrada
-entrada = st.text_input("Descreva o problema:")
+# Campo de busca
+st.markdown("<label style='color: #333;'>Descreva o problema:</label>", unsafe_allow_html=True)
+entrada = st.text_input("", key="entrada")
 
-# Carregar a base de dados
+# Carrega base
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 
-# Função de normalização para ignorar acentos e caixa
-def normalizar(texto):
+# Pré-processamento
+def preprocessar(texto):
     texto = str(texto).lower()
-    return unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')
+    texto = re.sub(r"[^\w\s]", "", texto)
+    palavras = texto.split()
+    return " ".join([p for p in palavras if len(p) > 2])
 
-# Criar coluna de texto pré-processado
-df["trecho_processado"] = df["trecho"].apply(normalizar)
+df["trecho_processado"] = df["trecho"].apply(preprocessar)
 
 # Vetorização
 vetorizador = TfidfVectorizer()
 matriz_tfidf = vetorizador.fit_transform(df["trecho_processado"])
 
-# Função de busca
-def buscar_normas(consulta):
-    consulta_proc = normalizar(consulta)
+# Busca
+def buscar(consulta):
+    consulta_proc = preprocessar(consulta)
     if not consulta_proc.strip():
-        return pd.DataFrame()
-    
+        return []
+
     consulta_vec = vetorizador.transform([consulta_proc])
     similaridades = cosine_similarity(consulta_vec, matriz_tfidf).flatten()
-
     top_indices = similaridades.argsort()[::-1]
-    top_similares = similaridades[top_indices]
-    top_relevantes = [i for i, score in zip(top_indices, top_similares) if score > 0.15]
+    top_resultados = df.iloc[top_indices]
+    top_resultados = top_resultados[similaridades[top_indices] > 0.1]
+    return top_resultados
 
-    return df.loc[top_relevantes]
-
-# Exibir resultados
+# Resultado
 if entrada:
-    resultados = buscar_normas(entrada)
+    resultados = buscar(entrada)
     if not resultados.empty:
         st.success("Resultados encontrados:")
-        for _, linha in resultados.iterrows():
-            st.markdown(
-                f"""
-                <div style='margin-bottom: 20px;'>
-                    <p>🔎 <b>Manifestação:</b> {linha['manifestacao']}</p>
-                    <p>📘 <b>Segundo a {linha['norma']}, seção {linha['secao']}:</b><br>{linha['trecho']}</p>
-                    <p>✅ <b>Recomendações:</b> {linha['recomendacoes']}</p>
-                    <p>🔁 <b>Consultas relacionadas:</b> {linha['consultas_relacionadas']}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        for _, row in resultados.iterrows():
+            st.markdown(f"""
+🔍 **Manifestação:** {row['manifestacao']}  
+📘 **Segundo a {row['norma']}, seção {row['secao']}:**  
+{row['trecho']}  
+
+✅ **Recomendações:**  
+{row['recomendacoes']}  
+
+🔁 **Consultas relacionadas:**  
+{row['consultas_relacionadas']}  
+            """)
     else:
         st.warning("Nenhum resultado encontrado para essa manifestação.")
 
 # Rodapé
 st.markdown(
-    "<div style='text-align: center; margin-top: 40px;'>Desenvolvido por Gézica Hemann | Engenharia Civil</div>",
+    "<div style='text-align: center; margin-top: 50px;'>Desenvolvido por Gézica Hemann | Engenharia Civil</div>",
     unsafe_allow_html=True
 )
