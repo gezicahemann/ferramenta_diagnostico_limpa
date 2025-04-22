@@ -1,47 +1,42 @@
 import streamlit as st
 import pandas as pd
 import re
+import base64
+from io import BytesIO
+from PIL import Image
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# === CONFIGURAÇÃO DA PÁGINA ===
+# === CONFIG DA PÁGINA ===
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 
-# === CSS PERSONALIZADO ===
+# === CSS ===
 st.markdown("""
 <style>
-  /* Título */
   .titulo {
-    text-align: center;
-    font-size: 2.5rem;
-    margin-bottom: 0.2rem;
+    text-align: center; font-size: 2.5rem; margin-bottom: 0.2rem;
   }
-  /* Subtítulo */
   .subtitulo {
-    text-align: center;
-    color: #555;
-    margin-bottom: 1.5rem;
+    text-align: center; color: #555; margin-bottom: 1.5rem;
   }
-  /* Texto de cada resultado */
   .resultado {
-    font-size: 0.95em;
-    line-height: 1.5em;
-    margin-bottom: 2rem;
+    font-size: 0.95em; line-height: 1.5em; margin-bottom: 2rem;
   }
-  /* Rodapé */
   .rodape {
-    text-align: center;
-    margin-top: 50px;
-    font-size: 0.9em;
-    color: #888;
+    text-align: center; margin-top: 50px; font-size: 0.9em; color: #888;
   }
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO CENTRALIZADA VIA COLUNAS ===
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.image("logo_engenharia.png", width=80)  # ajuste width se quiser maior/menor
+# === LOGO EMBED & CENTRALIZAÇÃO ===
+def load_logo(path: str, width: int = 80):
+    img = Image.open(path)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    return f'<img src="data:image/png;base64,{b64}" width="{width}" style="display:block; margin:0 auto;" />'
+
+st.markdown(load_logo("logo_engenharia.png", width=80), unsafe_allow_html=True)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
@@ -53,22 +48,20 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# === FUNÇÃO DE PRÉ‑PROCESSAMENTO ===
+# === PRÉ‑PROCESSAMENTO ===
 def preprocessar(texto: str) -> str:
     txt = texto.lower()
     txt = re.sub(r"[^\w\s]", "", txt)
     toks = txt.split()
     return " ".join(t for t in toks if len(t) > 2)
 
-# === CARREGA A BASE E PREPROCESSA ===
+# === BASE & VETORIZAÇÃO ===
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
-
-# === VETORIZAÇÃO COM CHAR N‑GRAMS ===
 vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
-# === FUNÇÃO DE BUSCA ===
+# === BUSCA ===
 def buscar(consulta: str) -> pd.DataFrame:
     proc = preprocessar(consulta)
     if not proc:
@@ -82,9 +75,8 @@ def buscar(consulta: str) -> pd.DataFrame:
         encontrados = df[mask].copy()
     return encontrados
 
-# === INPUT & EXIBIÇÃO DOS RESULTADOS ===
+# === INPUT & OUTPUT ===
 entrada = st.text_input("Descreva o problema:")
-
 if entrada:
     resultados = buscar(entrada)
     if not resultados.empty:
