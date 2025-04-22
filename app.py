@@ -8,17 +8,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 st.markdown("""
 <style>
-  /* Logo */
-  .logo-container {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 15px;
-  }
-  .logo-container img {
-    width: 80px;
-    height: auto;
-  }
-  /* Resultado */
   .resultado {
     font-size: 0.95em;
     line-height: 1.4em;
@@ -27,25 +16,17 @@ st.markdown("""
   .resultado p {
     margin: 0.3em 0;
   }
-  /* Rodapé */
   .rodape {
-    text-align: center;
-    margin-top: 50px;
-    font-size: 0.9em;
-    color: #888;
+    text-align: center; margin-top: 50px; font-size: 0.9em; color: #888;
   }
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO (centralizado) ===
-st.markdown(
-    """
-    <div class="logo-container">
-      <img src="logo_engenharia.png" alt="Logo Engenharia" />
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+# === LOGO CENTRALIZADO via st.image ===
+with st.container():
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.image("logo_engenharia.png", width=80)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown("## 🔎 Diagnóstico por Manifestação Patológica")
@@ -62,11 +43,10 @@ def preprocessar(texto: str) -> str:
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZADOR DE CHARACTER N-GRAMS ===
+# === VETORIZADOR ===
 vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
-# === FUNÇÃO DE BUSCA ===
 def buscar(consulta: str) -> pd.DataFrame:
     proc = preprocessar(consulta)
     if not proc:
@@ -75,7 +55,6 @@ def buscar(consulta: str) -> pd.DataFrame:
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs][sims[idxs] > 0.1].copy()
-    # fallback no campo "manifestacao"
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask]
