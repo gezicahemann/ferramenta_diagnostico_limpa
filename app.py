@@ -4,31 +4,28 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# === CONFIGURAÇÃO DA PÁGINA ===
+# === PÁGINA & CONFIGURAÇÃO ===
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 
-# === CSS ===
+# === CSS PERSONALIZADO ===
 st.markdown("""
 <style>
-  /* Título principal */
+  /* Título e subtítulo */
   .titulo {
     text-align: center;
-    font-size: 2rem;
+    font-size: 2.5rem;
     margin-bottom: 0.2rem;
   }
-  /* Subtítulo */
   .subtitulo {
     text-align: center;
     margin-bottom: 1.5rem;
+    color: #555;
   }
-  /* Bloco de cada resultado */
+  /* Resultado formatado */
   .resultado {
     font-size: 0.95em;
-    line-height: 1.4em;
-    margin-bottom: 2em;
-  }
-  .resultado p {
-    margin: 0.3em 0;
+    line-height: 1.5em;
+    margin-bottom: 2rem;
   }
   /* Rodapé */
   .rodape {
@@ -40,34 +37,38 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO CENTRALIZADA ===
-st.markdown(
-    """
-    <div style="text-align: center; margin-bottom: 15px;">
-      <img src="logo_engenharia.png" width="100" alt="Logo Engenharia"/>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# === LOGO (centralizada via colunas) ===
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image("logo_engenharia.png", width=80)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitulo">Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="subtitulo">'
+    'Digite abaixo a manifestação observada '
+    '(ex: fissura em viga, infiltração na parede, manchas em fachada...)'
+    '</div>',
+    unsafe_allow_html=True
+)
 
-# === FUNÇÃO DE PRÉ‑PROCESSAMENTO LEVE ===
+# === FUNÇÃO DE PRÉ‑PROCESSAMENTO ===
 def preprocessar(texto: str) -> str:
     txt = texto.lower()
-    txt = re.sub(r"[^\w\s]", "", txt)
+    txt = re.sub(r"[^\w\s]", "", txt)      # remove pontuação
     toks = txt.split()
-    # só tokens com mais de 2 caracteres
     return " ".join(t for t in toks if len(t) > 2)
 
-# === CARREGA BASE DE DADOS ===
-df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv", encoding="utf-8")
+# === CARREGA A BASE E PREPROCESSA ===
+df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZADOR (character n‑grams cobre variações como "fiss", "fissura", etc.) ===
-vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
+# === VETORIZAÇÃO CHAR N‑GRAM (3 a 5) ===
+vectorizer = TfidfVectorizer(
+    analyzer="char_wb",
+    ngram_range=(3,5),
+    lowercase=True
+)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
 # === FUNÇÃO DE BUSCA ===
@@ -75,32 +76,33 @@ def buscar(consulta: str) -> pd.DataFrame:
     proc = preprocessar(consulta)
     if not proc:
         return pd.DataFrame()
+    # busca por similaridade
     vec = vectorizer.transform([proc])
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
-    encontrados = df.iloc[idxs][sims[idxs] > 0.1].copy()
-    # fallback por substring no campo 'manifestacao'
+    encontrados = df.iloc[idxs].loc[sims[idxs] > 0.1].copy()
+    # fallback: busca direta por substring em 'manifestacao'
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
-        encontrados = df[mask]
+        encontrados = df[mask].copy()
     return encontrados
 
-# === INPUT & RESULTADO ===
+# === INPUT E EXIBIÇÃO DE RESULTADOS ===
 entrada = st.text_input("Descreva o problema:")
 
 if entrada:
-    res = buscar(entrada)
-    if not res.empty:
+    resultados = buscar(entrada)
+    if not resultados.empty:
         st.success("Resultados encontrados:")
-        for _, row in res.iterrows():
+        for _, row in resultados.iterrows():
             st.markdown(f"""
 <div class="resultado">
-  <p><strong>🔎 Manifestação:</strong> {row['manifestacao']}</p>
-  <p><strong>📘 Segundo a {row['norma']}, seção {row['secao']}:</strong><br>
-  {row['trecho']}</p>
-  <p><strong>✅ Recomendações:</strong><br>
-  {row['recomendacoes']}</p>
-  <p><strong>🔁 Consultas relacionadas:</strong> {row['consultas_relacionadas']}</p>
+<strong>🔎 Manifestação:</strong> {row['manifestacao']}<br><br>
+<strong>📘 Segundo a {row['norma']}, seção {row['secao']}:</strong><br>
+{row['trecho']}<br><br>
+<strong>✅ Recomendações:</strong><br>
+{row['recomendacoes']}<br><br>
+<strong>🔁 Consultas relacionadas:</strong> {row['consultas_relacionadas']}
 </div>
 """, unsafe_allow_html=True)
     else:
