@@ -3,7 +3,6 @@ import pandas as pd
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from PIL import Image
 
 # === PÁGINA & CSS ===
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
@@ -11,26 +10,42 @@ st.markdown("""
 <style>
   /* Logo */
   .logo-container {
-    display: flex; justify-content: center; margin-bottom: 15px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+  }
+  .logo-container img {
+    width: 80px;
+    height: auto;
   }
   /* Resultado */
   .resultado {
-    font-size: 0.95em; line-height: 1.4em; margin-bottom: 2em;
+    font-size: 0.95em;
+    line-height: 1.4em;
+    margin-bottom: 2em;
   }
   .resultado p {
     margin: 0.3em 0;
   }
   /* Rodapé */
   .rodape {
-    text-align: center; margin-top: 50px; font-size: 0.9em; color: #888;
+    text-align: center;
+    margin-top: 50px;
+    font-size: 0.9em;
+    color: #888;
   }
 </style>
 """, unsafe_allow_html=True)
 
 # === LOGO (centralizado) ===
-st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-st.image("logo_engenharia.png", width=80)
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown(
+    """
+    <div class="logo-container">
+      <img src="logo_engenharia.png" alt="Logo Engenharia" />
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown("## 🔎 Diagnóstico por Manifestação Patológica")
@@ -73,7 +88,7 @@ if entrada:
     res = buscar(entrada)
     if not res.empty:
         st.success("Resultados encontrados:")
-        for i, row in res.iterrows():
+        for _, row in res.iterrows():
             st.markdown(f"""
 <div class="resultado">
   <p><strong>🔎 Manifestação:</strong> {row['manifestacao']}</p>
