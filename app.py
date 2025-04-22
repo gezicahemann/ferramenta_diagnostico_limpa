@@ -38,13 +38,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO CENTRALIZADA ===
-st.markdown(
-    '<p style="text-align:center; margin-bottom:1rem;">'
-    '<img src="logo_engenharia.png" width="80" alt="Logo Engenharia">'
-    '</p>',
-    unsafe_allow_html=True
-)
+# === LOGO CENTRALIZADA COM COLUNAS ===
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image("logo_engenharia.png", width=80)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
@@ -67,12 +64,8 @@ def preprocessar(texto: str) -> str:
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZADOR CHAR N‑GRAM (3–5) ===
-vectorizer = TfidfVectorizer(
-    analyzer="char_wb",
-    ngram_range=(3,5),
-    lowercase=True
-)
+# === VETORIZAÇÃO COM CHAR N‑GRAMS (3–5) ===
+vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
 # === FUNÇÃO DE BUSCA ===
@@ -84,6 +77,7 @@ def buscar(consulta: str) -> pd.DataFrame:
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs].loc[sims[idxs] > 0.1].copy()
+    # fallback por substring na manifestação
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask].copy()
