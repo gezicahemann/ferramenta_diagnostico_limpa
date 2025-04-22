@@ -8,15 +8,20 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 st.markdown("""
 <style>
+  /* Logo centralizada */
+  .logo-center {
+    text-align: center;
+    margin-bottom: 15px;
+  }
+  .logo-center img {
+    width: 80px;
+    height: auto;
+  }
   /* Título */
   .titulo {
     text-align: center;
     font-size: 2rem;
     margin-bottom: 0.2rem;
-  }
-  /* Rótulo do input */
-  label[for="data"] {
-    color: #333 !important;
   }
   /* Texto de resultado */
   .resultado {
@@ -34,10 +39,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO CENTRALIZADO ===
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.image("logo_engenharia.png", width=80)
+# === LOGO ===
+st.markdown(
+    '<div class="logo-center">'
+  +  '<img src="logo_engenharia.png" alt="Logo Engenharia"/>'
+  +  '</div>',
+    unsafe_allow_html=True
+)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
@@ -54,7 +62,7 @@ def preprocessar(texto: str) -> str:
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZAÇÃO CHARACTER N-GRAMS para variações ===
+# === VETORIZADOR DE CHARACTER N‑GRAMS ===
 vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
@@ -67,13 +75,13 @@ def buscar(consulta: str) -> pd.DataFrame:
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs][sims[idxs] > 0.1].copy()
-    # fallback por substring em 'manifestacao'
+    # fallback simples em 'manifestacao'
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask]
     return encontrados
 
-# === INPUT & SAÍDA ===
+# === INPUT & RESULTADOS ===
 entrada = st.text_input("Descreva o problema:")
 
 if entrada:
