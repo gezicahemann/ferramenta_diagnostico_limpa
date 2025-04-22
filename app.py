@@ -22,11 +22,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO CENTRALIZADO via st.image ===
-with st.container():
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        st.image("logo_engenharia.png", width=80)
+# === LOGO CENTRALIZADO via st.image + colunas iguais ===
+col1, col2, col3 = st.columns(3)
+with col2:
+    st.image("logo_engenharia.png", width=80)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown("## 🔎 Diagnóstico por Manifestação Patológica")
@@ -35,7 +34,7 @@ st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltr
 # === PREPROCESSAMENTO LEVE ===
 def preprocessar(texto: str) -> str:
     txt = texto.lower()
-    txt = re.sub(r"[^\w\s]", "", txt)
+    txt = re.sub(r"[^\w\s]", "", txt)          # só letras e espaços
     toks = txt.split()
     return " ".join(t for t in toks if len(t) > 2)
 
@@ -43,7 +42,7 @@ def preprocessar(texto: str) -> str:
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZADOR ===
+# === VETORIZADOR para variações ===
 vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
@@ -56,6 +55,7 @@ def buscar(consulta: str) -> pd.DataFrame:
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs][sims[idxs] > 0.1].copy()
     if encontrados.empty:
+        # fallback por substring no campo manifestacao
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask]
     return encontrados
