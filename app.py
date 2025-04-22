@@ -8,27 +8,18 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 st.markdown("""
 <style>
-  /* Logo centralizada */
-  .logo-wrapper {
-    text-align: center;
-    margin-bottom: 1rem;
-  }
-  .logo-wrapper img {
-    width: 80px;
-    height: auto;
-  }
   /* Título */
   .titulo {
     text-align: center;
     font-size: 2rem;
     margin-bottom: 0.2rem;
   }
-  /* Texto de instrução */
+  /* Subtítulo */
   .subtitulo {
     text-align: center;
     margin-bottom: 1.5rem;
   }
-  /* Resultados */
+  /* Resultado */
   .resultado {
     font-size: 0.95em;
     line-height: 1.4em;
@@ -47,13 +38,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO ===
-st.markdown(
-    '<div class="logo-wrapper">'
-  +  '<img src="logo_engenharia.png" alt="Logo Engenharia">'
-  +  '</div>',
-    unsafe_allow_html=True
-)
+# === LOGO (usando st.image para garantir que apareça) ===
+st.image("logo_engenharia.png", width=80, use_column_width=False)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
@@ -70,7 +56,7 @@ def preprocessar(texto: str) -> str:
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_proc"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZADOR DE CHARACTER N-GRAMS ===
+# === VETORIZAÇÃO (character n-grams para tratar variações) ===
 vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3,5), lowercase=True)
 tfidf_matrix = vectorizer.fit_transform(df["trecho_proc"])
 
@@ -88,7 +74,7 @@ def buscar(consulta: str) -> pd.DataFrame:
         encontrados = df[mask]
     return encontrados
 
-# === INPUT & OUTPUT ===
+# === INPUT & EXIBIÇÃO ===
 entrada = st.text_input("Descreva o problema:")
 
 if entrada:
