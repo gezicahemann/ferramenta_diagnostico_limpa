@@ -8,15 +8,18 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 st.markdown("""
 <style>
-  /* Centraliza e dimensiona o logo */
-  .logo {
-    text-align: center;
-    margin-bottom: 15px;
-  }
-  .logo img {
-    width: 90px;
-    height: auto;
-  }
+ # Função para centralizar a logo e exibir com tamanho menor
+def exibir_logo():
+    with open("logo_engenharia.png", "rb") as img_file:
+        logo_base64 = base64.b64encode(img_file.read()).decode()
+    st.markdown(
+        f"""
+        <div style="text-align: center;">
+            <img src="data:image/png;base64,{logo_base64}" alt="Logo" width="90"/>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
   /* Título */
   .titulo {
     text-align: center;
