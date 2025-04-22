@@ -37,10 +37,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO (centralizada via colunas) ===
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.image("logo_engenharia.png", width=80)
+# === LOGO CENTRALIZADA ===
+st.markdown(
+    '<div style="text-align:center; margin-bottom: 1rem;">'
+    '<img src="logo_engenharia.png" width="80px" />'
+    '</div>',
+    unsafe_allow_html=True
+)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
@@ -76,12 +79,10 @@ def buscar(consulta: str) -> pd.DataFrame:
     proc = preprocessar(consulta)
     if not proc:
         return pd.DataFrame()
-    # busca por similaridade
     vec = vectorizer.transform([proc])
     sims = cosine_similarity(vec, tfidf_matrix).flatten()
     idxs = sims.argsort()[::-1]
     encontrados = df.iloc[idxs].loc[sims[idxs] > 0.1].copy()
-    # fallback: busca direta por substring em 'manifestacao'
     if encontrados.empty:
         mask = df["manifestacao"].str.contains(proc, case=False, na=False)
         encontrados = df[mask].copy()
