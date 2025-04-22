@@ -1,84 +1,106 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import base64
 import re
-from pathlib import Path
 
-# Centraliza a logo com o título
-st.markdown(
-    """
-    <div style="text-align: center;">
-        <img src="https://raw.githubusercontent.com/gezicahemann/ferramenta_diagnostico/main/logo_engenharia.png" width="90"/>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Função para centralizar a logo e exibir com tamanho menor
+def exibir_logo():
+    with open("logo_engenharia.png", "rb") as img_file:
+        logo_base64 = base64.b64encode(img_file.read()).decode()
+    st.markdown(
+        f"""
+        <div style="text-align: center;">
+            <img src="data:image/png;base64,{logo_base64}" alt="Logo" width="90"/>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-st.markdown(
-    "<h1 style='text-align: center;'>🔍 Diagnóstico por Manifestação Patológica</h1>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    "<p style='text-align: center;'>Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)</p>",
-    unsafe_allow_html=True
-)
-
-# Campo de busca
-st.markdown("<label style='color: #333;'>Descreva o problema:</label>", unsafe_allow_html=True)
-entrada = st.text_input("", key="entrada")
-
-# Carrega base
-df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
-
-# Pré-processamento
+# Pré-processamento leve (sem spaCy)
 def preprocessar(texto):
     texto = str(texto).lower()
     texto = re.sub(r"[^\w\s]", "", texto)
     palavras = texto.split()
     return " ".join([p for p in palavras if len(p) > 2])
 
-df["trecho_processado"] = df["trecho"].apply(preprocessar)
+# Carregar base de dados
+df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
+
+# Criar coluna unificada para consulta
+df["texto_unificado"] = (df["manifestacao"].astype(str) + " " + df["trecho"].astype(str)).apply(preprocessar)
+
+# Verificação de dados válidos
+if df["texto_unificado"].isnull().all():
+    st.error("Erro: a base de dados não contém informações válidas para pesquisa.")
+    st.stop()
 
 # Vetorização
 vetorizador = TfidfVectorizer()
-matriz_tfidf = vetorizador.fit_transform(df["trecho_processado"])
+matriz_tfidf = vetorizador.fit_transform(df["texto_unificado"])
 
-# Busca
-def buscar(consulta):
+# Interface
+st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
+
+st.markdown("""
+    <style>
+        .stTextInput > div > div > input {
+            font-size: 18px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+exibir_logo()
+
+st.markdown("<h1 style='text-align: center;'>🔎 Diagnóstico por Manifestação Patológica</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)</p>", unsafe_allow_html=True)
+
+entrada = st.text_input("Descreva o problema:")
+
+def buscar_respostas(consulta):
     consulta_proc = preprocessar(consulta)
     if not consulta_proc.strip():
         return []
 
     consulta_vec = vetorizador.transform([consulta_proc])
     similaridades = cosine_similarity(consulta_vec, matriz_tfidf).flatten()
-    top_indices = similaridades.argsort()[::-1]
-    top_resultados = df.iloc[top_indices]
-    top_resultados = top_resultados[similaridades[top_indices] > 0.1]
-    return top_resultados
+    indices_relevantes = similaridades.argsort()[::-1]
 
-# Resultado
+    respostas = []
+    for i in indices_relevantes:
+        if similaridades[i] > 0.25:  # Limite de relevância
+            row = df.iloc[i]
+            resposta = {
+                "manifestacao": row["manifestacao"],
+                "norma": row["norma"],
+                "secao": row["secao"],
+                "trecho": row["trecho"],
+                "recomendacoes": row["recomendacoes"],
+                "consultas": row["consultas_relacionadas"]
+            }
+            respostas.append(resposta)
+    return respostas
+
+# Exibição dos resultados
 if entrada:
-    resultados = buscar(entrada)
-    if not resultados.empty:
+    resultados = buscar_respostas(entrada)
+    if resultados:
         st.success("Resultados encontrados:")
-        for _, row in resultados.iterrows():
-            st.markdown(f"""
-🔍 **Manifestação:** {row['manifestacao']}  
-📘 **Segundo a {row['norma']}, seção {row['secao']}:**  
-{row['trecho']}  
+        for r in resultados:
+            texto_formatado = f"""
+🔎 **Manifestação:** {r["manifestacao"]}  
+📘 **Segundo a {r["norma"]}, seção {r["secao"]}:**  
+{r["trecho"]}  
 
-✅ **Recomendações:**  
-{row['recomendacoes']}  
+✅ **Recomendações:** {r["recomendacoes"]}  
 
-🔁 **Consultas relacionadas:**  
-{row['consultas_relacionadas']}  
-            """)
+📑 **Consultas relacionadas:** {r["consultas"]}
+---
+"""
+            st.markdown(texto_formatado)
     else:
         st.warning("Nenhum resultado encontrado para essa manifestação.")
 
 # Rodapé
-st.markdown(
-    "<div style='text-align: center; margin-top: 50px;'>Desenvolvido por Gézica Hemann | Engenharia Civil</div>",
-    unsafe_allow_html=True
-)
+st.markdown("<p style='text-align: center; font-size: 13px;'>Desenvolvido por Gézica Hemann | Engenharia Civil</p>", unsafe_allow_html=True)
