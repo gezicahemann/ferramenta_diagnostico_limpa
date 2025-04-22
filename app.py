@@ -8,20 +8,34 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 st.markdown("""
 <style>
+  /* Logo centralizada */
+  .logo-wrapper {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  .logo-wrapper img {
+    width: 80px;
+    height: auto;
+  }
   /* Título */
   .titulo {
     text-align: center;
     font-size: 2rem;
     margin-bottom: 0.2rem;
   }
-  /* Resultado */
+  /* Texto de instrução */
+  .subtitulo {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  /* Resultados */
   .resultado {
     font-size: 0.95em;
     line-height: 1.4em;
     margin-bottom: 2em;
   }
   .resultado p {
-    margin: 0.4em 0;
+    margin: 0.5em 0;
   }
   /* Rodapé */
   .rodape {
@@ -33,14 +47,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === LOGO CENTRALIZADA ===
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.image("logo_engenharia.png", width=80)
+# === LOGO ===
+st.markdown(
+    '<div class="logo-wrapper">'
+  +  '<img src="logo_engenharia.png" alt="Logo Engenharia">'
+  +  '</div>',
+    unsafe_allow_html=True
+)
 
 # === TÍTULO & SUBTÍTULO ===
 st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
-st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)")
+st.markdown('<div class="subtitulo">Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)</div>', unsafe_allow_html=True)
 
 # === PREPROCESSAMENTO LEVE ===
 def preprocessar(texto: str) -> str:
@@ -71,7 +88,7 @@ def buscar(consulta: str) -> pd.DataFrame:
         encontrados = df[mask]
     return encontrados
 
-# === INPUT & SAÍDA ===
+# === INPUT & OUTPUT ===
 entrada = st.text_input("Descreva o problema:")
 
 if entrada:
