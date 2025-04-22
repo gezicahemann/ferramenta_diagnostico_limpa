@@ -9,70 +9,101 @@ st.set_page_config(page_title="Diagnóstico Patológico", layout="centered")
 
 st.markdown("""
     <style>
-        /* Centraliza logo */
-        .logo-container { text-align: center; margin: 20px 0; }
-        .logo-container img { width: 80px; }
+        /* Centraliza e dimensiona a logo */
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .logo-container img {
+            width: 80px;
+            height: auto;
+        }
 
-        /* Resultado: fonte um pouco menor e espaçamento */
-        .resultado { font-size: 0.95em; line-height: 1.4em; margin-bottom: 1.5em; }
+        /* Remove o texto “Logo Engenharia” quebrado */
+        .logo-alt { display: none; }
 
-        /* Label do input mais escuro */
-        label[for="textarea"] { color: #333 !important; }
+        /* Título principal com destaque */
+        .titulo {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        /* Input label mais escuro */
+        .stTextInput > label {
+            color: #333 !important;
+        }
+
+        /* Área de resultado */
+        .resultado {
+            font-size: 0.95em;
+            line-height: 1.5em;
+            margin-bottom: 1.5em;
+        }
 
         /* Rodapé */
-        .rodape { text-align: center; margin-top: 50px; font-size: 0.9em; color: #888; }
+        .rodape {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 0.9em;
+            color: #888;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="logo-container"><img src="logo_engenharia.png" alt="Logo Engenharia"></div>', unsafe_allow_html=True)
-st.markdown("## 🔎 Diagnóstico por Manifestação Patológica")
+# === LOGO ===
+st.markdown('<div class="logo-container"><img src="logo_engenharia.png" /></div>', unsafe_allow_html=True)
+
+# === TÍTULO E SUBTÍTULO ===
+st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
 st.write("Digite abaixo a manifestação observada (ex: fissura em viga, infiltração na parede, manchas em fachada...)")
 
-# === FUNÇÃO DE PRÉ-PROCESSAMENTO (SEM ALTERAR) ===
+# === PRÉ-PROCESSAMENTO (mantido) ===
 def preprocessar(texto):
     texto = str(texto).lower()
     texto = re.sub(r"[^\w\s]", "", texto)
-    palavras = texto.split()
-    # opcional: tratar 'fissur' como raíz
-    return " ".join(p for p in palavras if len(p) > 2)
+    tokens = texto.split()
+    # remove palavras muito curtas, mantém raiz de "fissur"
+    return " ".join(tok for tok in tokens if len(tok) > 2)
 
-# === CARREGA E PREPARA A BASE (SEM ALTERAR) ===
+# === CARREGA BASE DE DADOS (verifique o nome exato do CSV) ===
 df = pd.read_csv("base_normas_com_recomendacoes_consultas.csv")
 df["trecho_processado"] = df["trecho"].apply(preprocessar)
 
-# === VETORIZADOR E MATRIZ TF‑IDF (SEM ALTERAR) ===
+# === VETORIZAÇÃO TF-IDF (mantido) ===
 vet = TfidfVectorizer()
 matriz = vet.fit_transform(df["trecho_processado"])
 
-# === FUNÇÃO DE BUSCA “TRAVADA” ===
+# === FUNÇÃO DE BUSCA (mantida) ===
 def buscar_normas(consulta):
     proc = preprocessar(consulta)
-    if not proc:
+    if not proc.strip():
         return pd.DataFrame()
-
     vec = vet.transform([proc])
     sims = cosine_similarity(vec, matriz).flatten()
     idxs = sims.argsort()[::-1]
-    resultados = df.iloc[idxs][sims[idxs] > 0.1]  # limiar de relevância
+    resultados = df.iloc[idxs][sims[idxs] > 0.1]
     return resultados
 
-# === INTERAÇÃO COM USUÁRIO ===
+# === INTERAÇÃO ===
 entrada = st.text_input("Descreva o problema:")
 
 if entrada:
-    res = buscar_normas(entrada)
-    if not res.empty:
+    resultados = buscar_normas(entrada)
+    if not resultados.empty:
         st.success("Resultados encontrados:")
-        for _, row in res.iterrows():
+        for _, row in resultados.iterrows():
             st.markdown(f"""
 <div class="resultado">
-🔎 **Manifestação:** {row['manifestacao']}  
-📘 **Segundo a {row['norma']}, seção {row['secao']}:**  
+**🔎 Manifestação:** {row['manifestacao']}  
+**📘 Segundo a {row['norma']}, seção {row['secao']}:**  
 {row['trecho']}  
 
-✅ **Recomendações:** {row['recomendacoes']}  
+**✅ Recomendações:**  
+{row['recomendacoes']}  
 
-🔁 **Consultas relacionadas:** {row['consultas_relacionadas']}
+**🔁 Consultas relacionadas:** {row['consultas_relacionadas']}
 </div>
 """, unsafe_allow_html=True)
     else:
