@@ -39,7 +39,7 @@ def load_logo(path: str, width: int = 80):
 st.markdown(load_logo("logo_engenharia.png", width=80), unsafe_allow_html=True)
 
 # === TÍTULO & SUBTÍTULO ===
-st.markdown('<div class="titulo">🔎 Diagnóstico por Manifestação Patológica</div>', unsafe_allow_html=True)
+st.markdown('<div class="titulo">🔎 Manifestação Patológica</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="subtitulo">'
     'Digite abaixo a manifestação observada '
